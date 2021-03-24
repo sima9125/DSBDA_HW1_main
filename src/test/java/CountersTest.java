@@ -1,4 +1,4 @@
-import eu.bitwalker.useragentutils.UserAgent;
+
 import bdtc.lab1.CounterType;
 import bdtc.lab1.HW1Mapper;
 import org.apache.hadoop.io.IntWritable;
@@ -12,48 +12,48 @@ import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 
-
+/* test for counters in mapreduce*/
 public class CountersTest {
 
     private MapDriver<LongWritable, Text, Text, IntWritable> mapDriver;
 
-    private final String testMalformedIP = "mama mila ramu";
-    private final String testIP = "ip1 - - [24/Apr/2011:04:06:01 -0400] \"GET /~strabal/grease/photo9/927-3.jpg HTTP/1.1\" 200 40028 \"-\" \"Mozilla/5.0 (compatible; YandexImages/3.0; +http://yandex.com/bots)\"\n";
+    private final String testMalformed = "mama mila ramu";
+    private final String testMap = "2,1616188268301,136";
+    private final String testRed = "Node2CPU,1616188260000,10s";
+    private final int scale = 10; // диапозон времени агрегации сырых метрик
 
     @Before
     public void setUp() {
-        HW1Mapper mapper = new HW1Mapper();
+        HW1Mapper mapper = new HW1Mapper(scale);
         mapDriver = MapDriver.newMapDriver(mapper);
     }
-
+    /* 1 bad*/
     @Test
     public void testMapperCounterOne() throws IOException  {
         mapDriver
-                .withInput(new LongWritable(), new Text(testMalformedIP))
+                .withInput(new LongWritable(), new Text(testMalformed))
                 .runTest();
         assertEquals("Expected 1 counter increment", 1, mapDriver.getCounters()
                 .findCounter(CounterType.MALFORMED).getValue());
     }
-
+    /*1 good*/
     @Test
     public void testMapperCounterZero() throws IOException {
-        UserAgent userAgent = UserAgent.parseUserAgentString(testIP);
         mapDriver
-                .withInput(new LongWritable(), new Text(testIP))
-                .withOutput(new Text(userAgent.getBrowser().getName()), new IntWritable(1))
+                .withInput(new LongWritable(), new Text(testMap))
+                .withOutput(new Text(testRed), new IntWritable(136))
                 .runTest();
         assertEquals("Expected 1 counter increment", 0, mapDriver.getCounters()
                 .findCounter(CounterType.MALFORMED).getValue());
     }
-
+    /*2 bad, 1 good*/
     @Test
     public void testMapperCounters() throws IOException {
-        UserAgent userAgent = UserAgent.parseUserAgentString(testIP);
         mapDriver
-                .withInput(new LongWritable(), new Text(testIP))
-                .withInput(new LongWritable(), new Text(testMalformedIP))
-                .withInput(new LongWritable(), new Text(testMalformedIP))
-                .withOutput(new Text(userAgent.getBrowser().getName()), new IntWritable(1))
+                .withInput(new LongWritable(), new Text(testMap))
+                .withInput(new LongWritable(), new Text(testMalformed))
+                .withInput(new LongWritable(), new Text(testMalformed))
+                .withOutput(new Text(testRed), new IntWritable(136))
                 .runTest();
 
         assertEquals("Expected 2 counter increment", 2, mapDriver.getCounters()

@@ -1,6 +1,7 @@
-import eu.bitwalker.useragentutils.UserAgent;
+
 import bdtc.lab1.HW1Mapper;
 import bdtc.lab1.HW1Reducer;
+import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -18,47 +19,49 @@ import java.util.List;
 public class MapReduceTest {
 
     private MapDriver<LongWritable, Text, Text, IntWritable> mapDriver;
-    private ReduceDriver<Text, IntWritable, Text, IntWritable> reduceDriver;
-    private MapReduceDriver<LongWritable, Text, Text, IntWritable, Text, IntWritable> mapReduceDriver;
+    private ReduceDriver<Text, IntWritable, Text, FloatWritable> reduceDriver;
+    private MapReduceDriver<LongWritable, Text, Text, IntWritable, Text, FloatWritable> mapReduceDriver;
 
-    private final String testIP = "ip1 - - [24/Apr/2011:04:06:01 -0400] \"GET /~strabal/grease/photo9/927-3.jpg HTTP/1.1\" 200 40028 \"-\" \"Mozilla/5.0 (compatible; YandexImages/3.0; +http://yandex.com/bots)\"\n";
+    private final String testMap = "2,1616188268301,136";
+    private final String testMap2 = "2,1616188268301,14";
+    private final String testRed = "Node2CPU,1616188260000,10s";
+    private final int scale = 10; // диапозон времени агрегации сырых метрик
 
-    private UserAgent userAgent;
     @Before
-    public void setUp() {
-        HW1Mapper mapper = new HW1Mapper();
+    public void setUp()
+    {
+        HW1Mapper mapper = new HW1Mapper(scale);
         HW1Reducer reducer = new HW1Reducer();
         mapDriver = MapDriver.newMapDriver(mapper);
         reduceDriver = ReduceDriver.newReduceDriver(reducer);
         mapReduceDriver = MapReduceDriver.newMapReduceDriver(mapper, reducer);
-        userAgent = UserAgent.parseUserAgentString(testIP);
     }
 
     @Test
     public void testMapper() throws IOException {
         mapDriver
-                .withInput(new LongWritable(), new Text(testIP))
-                .withOutput(new Text(userAgent.getBrowser().getName()), new IntWritable(1))
+                .withInput(new LongWritable(), new Text(testMap))
+                .withOutput(new Text(testRed), new IntWritable(136))
                 .runTest();
     }
 
     @Test
     public void testReducer() throws IOException {
         List<IntWritable> values = new ArrayList<IntWritable>();
-        values.add(new IntWritable(1));
-        values.add(new IntWritable(1));
+        values.add(new IntWritable(40));
+        values.add(new IntWritable(60));
         reduceDriver
-                .withInput(new Text(testIP), values)
-                .withOutput(new Text(testIP), new IntWritable(2))
+                .withInput(new Text(testRed), values)
+                .withOutput(new Text(testRed), new FloatWritable(50.0f))
                 .runTest();
     }
 
     @Test
     public void testMapReduce() throws IOException {
         mapReduceDriver
-                .withInput(new LongWritable(), new Text(testIP))
-                .withInput(new LongWritable(), new Text(testIP))
-                .withOutput(new Text(userAgent.getBrowser().getName()), new IntWritable(2))
+                .withInput(new LongWritable(), new Text(testMap))
+                .withInput(new LongWritable(), new Text(testMap2))
+                .withOutput(new Text(testRed), new FloatWritable(75.0f))
                 .runTest();
     }
 }
